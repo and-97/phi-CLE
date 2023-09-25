@@ -14,24 +14,22 @@
 #define NINETYNINETH 0.101010101010101010101010101010101010101010101010101010101010101010101010101010101010101
 
 static void set_contour(int contour_option, double t_max, double beta, std::complex<double> *t, std::complex<double> **_dt, int _N){
-    switch(contour_option){
-        case 1:
-            for (int i = 0; i < _N/2; i++){
-                t[i] = std::complex<double>(((double)i/(_N/2))*t_max , -(i*0.01)*beta/(_N/2));
-                t[_N/2+i] = std::complex<double>(t_max*(1-((double)i/(_N/2))), -beta*(0.01 + (((double)i)/(_N/2)*(1-0.01))));
-            }
-            for(int i = 1; i < _N/2-1; i++){
-                _dt[i][0] = t[i] - t[i-1];
-                _dt[i][1] = t[i+1] - t[i];
-            }
-            _dt[0][0] = t[1] - t[0];
-            _dt[0][1] = _dt[0][0];
-            _dt[_N/2-1][0] = t[_N/2-1] - t[_N/2-2];
-            _dt[_N/2-1][1] = _dt[_N/2-1][0];
-
-        default:
-            std::cerr << "Error: contour option not recognized\n contour option ---> " << contour_option << "\n Available contour options ---> 1" << std::endl;
-            exit(1);
+    if(contour_option == 1){
+        for (int i = 0; i < _N/2; i++){
+            t[i] = std::complex<double>(((double)i/(_N/2))*t_max , -(i*0.01)*beta/(_N/2));
+            t[_N/2+i] = std::complex<double>(t_max*(1-((double)i/(_N/2))), -beta*(0.01 + (((double)i)/(_N/2)*(1-0.01))));
+        }
+        for(int i = 1; i < _N-1; i++){
+            _dt[i][0] = t[i] - t[i-1];
+            _dt[i][1] = t[i+1] - t[i];
+        }
+        _dt[0][0] = t[1] - t[0];
+        _dt[0][1] = _dt[0][0];
+        _dt[_N-1][0] = t[_N-1] - t[_N-2];
+        _dt[_N-1][1] = _dt[_N-1][0];
+    }else{
+        std::cerr << "Error: contour option not recognized\n contour option ---> " << contour_option << "\n Available contour options ---> 1" << std::endl;
+        exit(1);
     }
 } 
 
@@ -63,6 +61,7 @@ class field {
         std::complex<double> getPrevField(int site);
         std::complex<double> getNextField(int site);
         double field_norm();
+        std::complex<double> get_drift(int site, double m2, double lambda);
 };
 
 field::field(int N, int contour_option, double t_max, double beta, double F1, double F2){
@@ -74,10 +73,13 @@ field::field(int N, int contour_option, double t_max, double beta, double F1, do
     _k = new std::complex<double>[_N];
     _noise = new std::complex<double>[_N];
     for (int i = 0; i < _N; i++) {
-        _field[i] = (rand_normal(0, SQRT_PI/SQRT_2), rand_normal(0, SQRT_PI/SQRT_2));
+        _field[i] = (rand_normal(0, .5), rand_normal(0, .5));
         _k[i] = 0;
         _noise[i] = 0;
         _dt[i] = new std::complex<double>[2];
+        for(int j = 0; j < 2; j++){
+            _dt[i][j] = 0;
+        }
     }
     _k_max = 0;
     set_contour(contour_option, t_max, beta, _t, _dt, _N);
@@ -156,9 +158,10 @@ std::complex<double> field::get_dt(int site, char direction) {
     if(direction == 'b'){
         return _dt[site][0];
     }
-    else{
+    else if (direction == 'f'){
         return _dt[site][1];
     }
+    return 0;
 }
 
 std::complex<double> field::get_k(int site) {
@@ -215,3 +218,19 @@ double field::field_norm(){
     return norm;
 }
 
+std::complex<double> field::get_drift(int site, double m2, double lambda){
+    std::complex<double> terms[2] = {0};
+
+    terms[0] += (_field[(site+1)%_N] - _field[site])/(_dt[site][1]);
+    if(site == 0){
+        terms[0] += (_field[_N-1] - _field[site])/(_dt[site][0]);
+    }else{
+        terms[0] += (_field[site-1] - _field[site])/(_dt[site][0]);
+    }
+
+
+    terms[1] += m2*_dt[site][1]*_field[site];
+    terms[1] += lambda*_dt[site][1]*_field[site]*_field[site]*_field[site];
+
+    return terms[0] - terms[1];
+}

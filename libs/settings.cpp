@@ -129,7 +129,7 @@ void read_settings(std::string settings_file){
         settings_file_stream.close();
 //check if the settings are correct. Settings that are not provided by the user are set to default values
         if (global_settings.epsilon == 0){
-            global_settings.epsilon = 0.000005;
+            global_settings.epsilon = 0.0005;
         }
         if (global_settings.beta == 0){
             global_settings.beta = 1;
@@ -138,7 +138,7 @@ void read_settings(std::string settings_file){
             global_settings.nodes = 40;
         }
         if (global_settings.therm_Ltime == 0){
-            global_settings.therm_Ltime = 100;
+            global_settings.therm_Ltime = 40;
         }
         if (global_settings.simulation_Ltime == 0){
             global_settings.simulation_Ltime = 2500;
